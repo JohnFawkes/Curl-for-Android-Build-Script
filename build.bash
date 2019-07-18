@@ -31,8 +31,8 @@ TEXTRED=$(tput setaf 1)
 DIR="`pwd`"
 NDK=r19c
 ZLVER="1.2.11"
-OSVER="1.1.1b"
-CRVER="7.65.0"
+OSVER="1.1.1c"
+CRVER="7.65.2"
 export OPATH=$PATH
 export ANDROID_NDK_HOME=$DIR/android-ndk-$NDK
 export ANDROID_TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
@@ -95,22 +95,23 @@ for LARCH in $ARCH; do
   [ -f zlib-$ZLVER.tar.gz ] || wget http://zlib.net/zlib-$ZLVER.tar.gz
   tar -xf zlib-$ZLVER.tar.gz
   cd zlib-$ZLVER
-  ./configure --static --archs="-arch $LARCH"
+  ./configure --static
   make -j$JOBS
   [ $? -eq 0 ] || continue
+  cp -f libz.a $DIR/usr/lib/libz.a
+  cp -f zconf.h zlib.h $DIR/usr/include
   cd ..
 
   echogreen "Building Openssl..."
   [ -f openssl-$OSVER.tar.gz ] || wget https://www.openssl.org/source/openssl-$OSVER.tar.gz
   tar -xf openssl-$OSVER.tar.gz
   cd openssl-$OSVER
-  ./configure enable-md2 enable-rc5 enable-tls enable-tls1_3 enable-tls1_2 enable-tls1_1 no-shared "$ARCHOS"
+  ./configure enable-md2 enable-rc5 enable-tls enable-tls1_3 enable-tls1_2 enable-tls1_1 no-shared "$ARCHOS" --with-zlib-include=$DIR/usr/include --with-zlib-lib=$DIR/usr/lib
   make depend && make -j$JOBS
   [ $? -eq 0 ] || continue
+  cp -f libcrypto.a libssl.a $DIR/usr/lib/
+  cp -rf include/openssl $DIR/usr/include
   cd ..
-
-  cp -f zlib-$ZLVER/libz.a openssl-$OSVER/libcrypto.a openssl-$OSVER/libssl.a $DIR/usr/lib/
-  cp -rf openssl-$OSVER/include/openssl $DIR/usr/include
 
   echogreen "Building cURL..."
   [ -f curl-$CRVER.tar.gz ] || wget https://curl.haxx.se/download/curl-$CRVER.tar.gz
@@ -118,7 +119,7 @@ for LARCH in $ARCH; do
   cd curl-$CRVER
   export CPPFLAGS="-I$DIR/usr/include"
   export LDFLAGS="-static -L$DIR/usr/lib"
-   ./configure --enable-static --disable-shared --enable-cross-compile --with-ssl=$DIR/usr --with-zlib=$DIR/usr --host=$LARCH-linux-android --target=$LARCH-linux-android --disable-ldap --disable-ldaps --enable-ipv6 --enable-versioned-symbols --enable-threaded-resolver
+   ./configure --enable-static --disable-shared --enable-cross-compile --with-ssl=$DIR/usr --with-zlib=$DIR/usr --host=$LARCH-linux-android --target=$LARCH-linux-android --disable-ldap --disable-ldaps --enable-ipv6 --enable-versioned-symbols --enable-threaded-resolver --without-ca-bundle --without-ca-path --with-ca-fallback
   make curl_LDFLAGS=-all-static -j$JOBS
   [ $? -eq 0 ] || continue
   cp src/curl $DIR/curl-$LARCH
