@@ -105,7 +105,7 @@ for LARCH in $ARCH; do
   [ -f openssl-$OSVER.tar.gz ] || wget https://www.openssl.org/source/openssl-$OSVER.tar.gz
   tar -xf openssl-$OSVER.tar.gz
   cd openssl-$OSVER
-  ./configure enable-md2 enable-rc5 enable-tls enable-tls1_3 enable-tls1_2 enable-tls1_1 no-shared "$ARCHOS" --with-zlib-include=$DIR/usr/include --with-zlib-lib=$DIR/usr/lib
+  ./Configure enable-md2 enable-rc5 enable-tls enable-tls1_3 enable-tls1_2 enable-tls1_1 no-shared "$ARCHOS" --with-zlib-include=$DIR/usr/include --with-zlib-lib=$DIR/usr/lib
   [ $? -eq 0 ] || continue
   make depend && make -j$JOBS
   [ $? -eq 0 ] || continue
