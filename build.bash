@@ -90,9 +90,11 @@ for LARCH in $ARCH; do
   mkdir -p $DIR/usr/lib $DIR/usr/include
 
   echogreen "Building Zlib..."
-  [ -f zlib-$ZLVER.tar.gz ] || wget http://zlib.net/zlib-$ZLVER.tar.gz
-  tar -xf zlib-$ZLVER.tar.gz
-  cd zlib-$ZLVER
+#  [ -f zlib-$ZLVER.tar.gz ] || wget http://zlib.net/zlib-$ZLVER.tar.gz
+#  tar -xf zlib-$ZLVER.tar.gz
+#  cd zlib-$ZLVER
+  git clone https://github.com/madler/zlib.git -b develop
+  cd zlib
   ./configure --static
   [ $? -eq 0 ] || continue
   make -j$JOBS
@@ -102,9 +104,11 @@ for LARCH in $ARCH; do
   cd ..
 
   echogreen "Building Openssl..."
-  [ -f openssl-$OSVER.tar.gz ] || wget https://www.openssl.org/source/openssl-$OSVER.tar.gz
-  tar -xf openssl-$OSVER.tar.gz
-  cd openssl-$OSVER
+#  [ -f openssl-$OSVER.tar.gz ] || wget https://www.openssl.org/source/openssl-$OSVER.tar.gz
+#  tar -xf openssl-$OSVER.tar.gz
+#  cd openssl-$OSVER
+  git clone https://github.com/openssl/openssl.git
+  cd openssl
   ./Configure enable-md2 enable-rc5 enable-tls enable-tls1_3 enable-tls1_2 enable-tls1_1 no-shared "$ARCHOS" --with-zlib-include=$DIR/usr/include --with-zlib-lib=$DIR/usr/lib
   [ $? -eq 0 ] || continue
   make depend && make -j$JOBS
@@ -114,11 +118,14 @@ for LARCH in $ARCH; do
   cd ..
 
   echogreen "Building cURL..."
-  [ -f curl-$CRVER.tar.gz ] || wget https://curl.haxx.se/download/curl-$CRVER.tar.gz
-  tar -xf curl-$CRVER.tar.gz
-  cd curl-$CRVER
+#  [ -f curl-$CRVER.tar.gz ] || wget https://curl.haxx.se/download/curl-$CRVER.tar.gz
+#  tar -xf curl-$CRVER.tar.gz
+  git clone https://github.com/curl/curl.git
+#  cd curl-$CRVER
+  cd curl
   export CPPFLAGS="-I$DIR/usr/include"
   export LDFLAGS="-static -L$DIR/usr/lib"
+  ./buildconf
    ./configure --enable-static --disable-shared --enable-cross-compile --with-ssl=$DIR/usr --with-zlib=$DIR/usr --host=$LARCH-linux-android --target=$LARCH-linux-android --disable-ldap --disable-ldaps --enable-ipv6 --enable-versioned-symbols --enable-threaded-resolver --without-ca-bundle --without-ca-path --with-ca-fallback
   [ $? -eq 0 ] || continue
   make curl_LDFLAGS=-all-static -j$JOBS
