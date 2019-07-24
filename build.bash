@@ -11,6 +11,8 @@ usage () {
   echogreen "ARCH=     (Default: all) (Valid Arch values: all, arm, arm64, aarch64, x86, i686, x64, x86_64)"
   echogreen "           Note that you can put as many of these as you want together as long as they're comma separated"
   echogreen "           Ex: ARCH=arm,x86"
+  echogreen "DEV=      (Default: false) (Valid Build values: true, false)"
+  echogreen "           True if Using git development repos, false if using stable release versions"
   echo " "
   exit 1
 }
@@ -19,7 +21,7 @@ while true; do
   case "$1" in
     -h|--help) usage;;
     "") shift; break;;
-    ARCH=*) eval $(echo "$1" | sed -e 's/=/="/' -e 's/$/"/' -e 's/,/ /g'); shift;;
+    ARCH=*|DEV=*) eval $(echo "$1" | sed -e 's/=/="/' -e 's/$/"/' -e 's/,/ /g'); shift;;
     *) echo "Invalid option: $1!"; usage;;
   esac
 done
@@ -32,7 +34,7 @@ DIR="`pwd`"
 NDK=r19c
 ZLVER="1.2.11"
 OSVER="1.1.1c"
-CRVER="7.65.2"
+CRVER="7.65.3"
 export OPATH=$PATH
 export ANDROID_NDK_HOME=$DIR/android-ndk-$NDK
 export ANDROID_TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
@@ -52,6 +54,7 @@ echogreen "Fetching Android NDK $NDK"
 [ -d "android-ndk-$NDK" ] || unzip -o android-ndk-$NDK-linux-x86_64.zip
 
 [ -z "$ARCH" -o "$ARCH" == "all" ] && ARCH="arm arm64 x86 x64"
+[ -z "$DEV" ] && DEV=false
 
 for LARCH in $ARCH; do
   case $LARCH in
@@ -86,13 +89,18 @@ for LARCH in $ARCH; do
     ln -sf $CXX `echo $CXX | sed "s|21-clang|-gcc|"`
   fi
 
-  rm -rf $DIR/usr/lib $DIR/usr/include zlib-$ZLVER openssl-$OSVER curl-$CRVER
+  rm -rf $DIR/usr/lib $DIR/usr/include zlib-$ZLVER zlib-dev openssl-$OSVER openssl-dev curl-$CRVER curl-dev
   mkdir -p $DIR/usr/lib $DIR/usr/include
 
   echogreen "Building Zlib..."
-  [ -f zlib-$ZLVER.tar.gz ] || wget http://zlib.net/zlib-$ZLVER.tar.gz
-  tar -xf zlib-$ZLVER.tar.gz
-  cd zlib-$ZLVER
+  if $DEV; then
+    git clone https://github.com/madler/zlib.git -b develop zlib-dev
+    cd zlib-dev
+  else
+    [ -f zlib-$ZLVER.tar.gz ] || wget http://zlib.net/zlib-$ZLVER.tar.gz
+    tar -xf zlib-$ZLVER.tar.gz
+    cd zlib-$ZLVER
+  fi
   ./configure --static
   [ $? -eq 0 ] || continue
   make -j$JOBS
@@ -102,9 +110,14 @@ for LARCH in $ARCH; do
   cd ..
 
   echogreen "Building Openssl..."
-  [ -f openssl-$OSVER.tar.gz ] || wget https://www.openssl.org/source/openssl-$OSVER.tar.gz
-  tar -xf openssl-$OSVER.tar.gz
-  cd openssl-$OSVER
+  if $DEV; then
+    git clone https://github.com/openssl/openssl.git openssl-dev
+    cd openssl-dev
+  else
+    [ -f openssl-$OSVER.tar.gz ] || wget https://www.openssl.org/source/openssl-$OSVER.tar.gz
+    tar -xf openssl-$OSVER.tar.gz
+    cd openssl-$OSVER
+  fi
   ./Configure enable-md2 enable-rc5 enable-tls enable-tls1_3 enable-tls1_2 enable-tls1_1 no-shared "$ARCHOS" --with-zlib-include=$DIR/usr/include --with-zlib-lib=$DIR/usr/lib
   [ $? -eq 0 ] || continue
   make depend && make -j$JOBS
@@ -114,12 +127,18 @@ for LARCH in $ARCH; do
   cd ..
 
   echogreen "Building cURL..."
-  [ -f curl-$CRVER.tar.gz ] || wget https://curl.haxx.se/download/curl-$CRVER.tar.gz
-  tar -xf curl-$CRVER.tar.gz
-  cd curl-$CRVER
+  if $DEV; then
+    git clone https://github.com/curl/curl.git curl-dev
+    cd curl-dev
+  else
+    [ -f curl-$CRVER.tar.gz ] || wget https://curl.haxx.se/download/curl-$CRVER.tar.gz
+    tar -xf curl-$CRVER.tar.gz
+    cd curl-$CRVER
+  fi
   export CPPFLAGS="-I$DIR/usr/include"
   export LDFLAGS="-static -L$DIR/usr/lib"
-   ./configure --enable-static --disable-shared --enable-cross-compile --with-ssl=$DIR/usr --with-zlib=$DIR/usr --host=$LARCH-linux-android --target=$LARCH-linux-android --disable-ldap --disable-ldaps --enable-ipv6 --enable-versioned-symbols --enable-threaded-resolver --without-ca-bundle --without-ca-path --with-ca-fallback
+  ./buildconf
+  ./configure --enable-static --disable-shared --enable-cross-compile --with-ssl=$DIR/usr --with-zlib=$DIR/usr --host=$LARCH-linux-android --target=$LARCH-linux-android --disable-ldap --disable-ldaps --enable-ipv6 --enable-versioned-symbols --enable-threaded-resolver --without-ca-bundle --without-ca-path --with-ca-fallback
   [ $? -eq 0 ] || continue
   make curl_LDFLAGS=-all-static -j$JOBS
   [ $? -eq 0 ] || continue
