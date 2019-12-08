@@ -1,3 +1,5 @@
+# DEFUNCT - [See new repo here](https://github.com/Zackptg5/openssl-curl-android)
+
 ## Curl for Android Build Script ##
 
 This will build the latest zlib, openssl, and then curl binary with support for the previous two
